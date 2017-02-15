@@ -13,7 +13,7 @@ I don't really have any plans to work on this as I've completely lost interest i
 | blb | x |  |
 | bundle | x | x |
 | script files* | x | x |
-| bnk |  |  |
+| bnk | x | x |
 
 Bundle/blb/Script file support should work for PD:TH/PD2/PD2 Linux files
 
