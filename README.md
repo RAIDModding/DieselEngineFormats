@@ -6,13 +6,16 @@ I don't really have any plans to work on this as I've completely lost interest i
 
 | File Type | Read | Write |
 | --- | --- | --- |
-| massunit | [x] | [] |
-| strings | [x] | [] |
-| font | [x] (BMFont & binary) | [x] |
-| banksinfo | [x] | [] |
-| blb | [x] | [] |
-| script files* | [x] | [x] |
-| bnk | [x] | [] |
+| massunit | x |  |
+| strings | x |  |
+| font | x (BMFont & binary) | x |
+| banksinfo | x | |
+| blb | x |  |
+| bundle | x | x |
+| script files* | x | x |
+| bnk |  |  |
+
+Bundle/blb/Script file support should work for PD:TH/PD2/PD2 Linux files
 
 ## Script Files (May be incomplete)
 * sequence_manager
