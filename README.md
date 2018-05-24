@@ -6,7 +6,7 @@ I don't really have any plans to work on this as I've completely lost interest i
 
 | File Type | Read | Write |
 | --- | --- | --- |
-| massunit | x |  |
+| massunit | x | x |
 | strings | x |  |
 | font | x (BMFont & binary) | x |
 | banksinfo | x | |
