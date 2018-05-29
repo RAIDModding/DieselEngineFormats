@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -9,8 +9,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DieselEngineFormats</RootNamespace>
     <AssemblyName>DieselEngineFormats</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -57,8 +58,12 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="WindowsBase" />
+    <Reference Include="ZLIB">
+      <HintPath>..\..\..\Desktop\ZLib_Binary\Release\ZLIB.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Animation.cs" />
     <Compile Include="BNK\BNK.cs" />
     <Compile Include="BNK\BanksInfo.cs" />
     <Compile Include="Bundle\PackageDatabase.cs" />
@@ -66,6 +71,7 @@
     <Compile Include="Bundle\PackageHeader.cs" />
     <Compile Include="Bundle\DatabaseEntry.cs" />
     <Compile Include="Defs.cs" />
+    <Compile Include="DieselFormat.cs" />
     <Compile Include="Font.cs" />
     <Compile Include="Bundle\HashIndex.cs" />
     <Compile Include="Bundle\LanguageEntry.cs" />
@@ -84,6 +90,9 @@
     <Compile Include="Utils.cs" />
     <Compile Include="ScriptData\ScriptDataNode.cs" />
     <Compile Include="ScriptData\CustomXML.cs" />
+    <Compile Include="ZLib\Adler32.cs" />
+    <Compile Include="ZLib\ZLibHeader.cs" />
+    <Compile Include="ZLib\ZLIBStream.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

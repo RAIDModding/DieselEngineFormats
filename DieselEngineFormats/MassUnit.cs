@@ -9,11 +9,9 @@ namespace DieselEngineFormats
 {
     public class Vector3
     {
-        public float X { get; set; }
-
-        public float Y { get; set; }
-
-        public float Z { get; set; }
+        public float X;
+        public float Y;
+        public float Z;
 
         public Vector3(float? x = null, float? y = null, float? z = null)
         {
@@ -22,16 +20,19 @@ namespace DieselEngineFormats
             this.Z = z ?? 0f;
         }
 
+        public void Write(BinaryWriter bw)
+        {
+            bw.Write(X);
+            bw.Write(Y);
+            bw.Write(Z);
+        }
     }
 
     public class Quaternion
     {
         public float X;
-
         public float Y;
-
         public float Z;
-
         public float W;
 
         public Quaternion(float? x = null, float? y = null, float? z = null, float? w = null)
@@ -40,6 +41,14 @@ namespace DieselEngineFormats
             this.Y = y ?? 0f;
             this.Z = z ?? 0f;
             this.W = w ?? 0f;
+        }
+
+        public virtual void Write(BinaryWriter bw)
+        {
+            bw.Write(X);
+            bw.Write(Y);
+            bw.Write(Z);
+            bw.Write(W);
         }
     }
 
@@ -126,7 +135,7 @@ namespace DieselEngineFormats
         }
     }
     
-    public class MassUnit
+    public class MassUnit : DieselFormat
     {
         List<MassUnitHeader> Headers;
 
@@ -140,30 +149,10 @@ namespace DieselEngineFormats
             this.Headers = Headers;
         }
 
-        public MassUnit(string filePath) : this()
-        {
-            this.Load(filePath);
-        }
+        public MassUnit(string filePath) : base(filePath) { }
+        public MassUnit(Stream fileStream) : base(fileStream) { }
 
-        public MassUnit(Stream fileStream) : this()
-        {
-            using (BinaryReader br = new BinaryReader(fileStream))
-                this.ReadFile(br);
-        }
-
-        public void WriteFile(string filepath)
-        {
-            using (var fs = new FileStream(filepath, FileMode.Create, FileAccess.Write))
-                WriteFile(fs);
-        }
-
-        public void WriteFile(Stream fs)
-        {
-            using (var bw = new BinaryWriter(fs))
-                this.WriteFile(bw);
-        }
-
-        public void WriteFile(BinaryWriter bw)
+        public override void WriteFile(BinaryWriter bw)
         {
             bw.Write(Headers.Count);
             bw.Write(0); // Unknown
@@ -176,7 +165,7 @@ namespace DieselEngineFormats
                 Headers[i].WritePositions(bw);
         }
 
-        private void ReadFile(BinaryReader br)
+        public override void ReadFile(BinaryReader br)
         {
             uint unitCount = br.ReadUInt32();
             br.ReadUInt32(); // Unknown
@@ -187,13 +176,6 @@ namespace DieselEngineFormats
 
             foreach (var header in Headers)
                 header.ReadPositions(br);
-        }
-
-        public void Load(string filePath)
-        {
-            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                using (var br = new BinaryReader(fs))
-                    this.ReadFile(br);
         }
     }
 }

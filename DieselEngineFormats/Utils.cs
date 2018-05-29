@@ -9,10 +9,12 @@
 namespace DieselEngineFormats.Utils
 {
     using DieselEngineFormats.Bundle;
+    using DieselEngineFormats.ZLib;
     using System;
     using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
+    using System.IO.Compression;
     using System.Linq;
     using System.Runtime.InteropServices;
     using System.Text;
@@ -415,6 +417,35 @@ namespace DieselEngineFormats.Utils
                 int p = (int)Environment.OSVersion.Platform;
                 return (p == 4) || (p == 6) || (p == 128);
             }
+        }
+
+        public static void ZLibDecompress(Stream stream, Stream tragetStream)
+        {
+            using (var zs = new ZLIBStream(stream, CompressionMode.Decompress, true))
+            {
+                int bytesLeidos = 0;
+                byte[] buffer = new byte[1024];
+
+                while ((bytesLeidos = zs.Read(buffer, 0, buffer.Length)) > 0)
+                    tragetStream.Write(buffer, 0, bytesLeidos);
+            }
+        }
+
+        public static void ZLibCompress(Stream stream, Stream targetStream, CompressionLevel? level = null)
+        {
+            using (var zs = new ZLIBStream(targetStream, level ?? CompressionLevel.Optimal, true))
+            {
+                int bytesLeidos = 0;
+                byte[] buffer = new byte[1024];
+
+                stream.Seek(0, SeekOrigin.Begin);
+
+                while ((bytesLeidos = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    zs.Write(buffer, 0, bytesLeidos);
+            }
+
+            using (var bw = new BinaryWriter(targetStream))
+                bw.Write((uint)stream.Length);
         }
     }
 }
