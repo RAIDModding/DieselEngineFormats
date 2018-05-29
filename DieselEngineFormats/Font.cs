@@ -36,7 +36,6 @@ namespace DieselEngineFormats.Font
 
     public class FontCharacter
     {
-
         public int ID { get; set; }
 
         public short X { get; set; }
@@ -51,7 +50,7 @@ namespace DieselEngineFormats.Font
 
         public sbyte XOffset { get; set; }
 
-        public sbyte YOffset { get; set; }
+        public short YOffset { get; set; }
 
         public int ASCIICode { get; set; }
 
@@ -61,26 +60,39 @@ namespace DieselEngineFormats.Font
 
         public FontCharacter() {}
 
-        public FontCharacter(BinaryReader instream)
+        public short ReadInt(BinaryReader br, bool large)
         {
-            instream.ReadByte();
-            this.W = instream.ReadByte();
-            this.H = instream.ReadByte();
-            this.XAdvance = instream.ReadByte();
-            this.XOffset = instream.ReadSByte();
-            this.YOffset = instream.ReadSByte();
-            this.X = instream.ReadInt16();
-            this.Y = instream.ReadInt16();
+            return large ? br.ReadInt16() : br.ReadSByte();
         }
 
-        public void WriteMainSection(BinaryWriter bw)
+        public void WriteInt(BinaryWriter bw, short i, bool large)
         {
-            bw.Write((byte)0);
+            if (large)
+                bw.Write(i);
+            else
+                bw.Write((sbyte)i);
+        }
+
+        public FontCharacter(BinaryReader br, bool large=false)
+        {
+            ReadInt(br, large); //Unknown
+            this.W = br.ReadByte();
+            this.H = br.ReadByte();
+            this.XAdvance = br.ReadByte();
+            this.XOffset = br.ReadSByte();
+            this.YOffset = ReadInt(br, large); //Oddly the only one that turned into a short?
+            this.X = br.ReadInt16();
+            this.Y = br.ReadInt16();
+        }
+
+        public void WriteMainSection(BinaryWriter bw, bool large=false)
+        {
+            WriteInt(bw, 0, large);
             bw.Write(this.W);
             bw.Write(this.H);
             bw.Write(this.XAdvance);
             bw.Write(this.XOffset);
-            bw.Write(this.YOffset);
+            WriteInt(bw, this.YOffset, large);
             bw.Write(this.X);
             bw.Write(this.Y);
         }
@@ -104,9 +116,9 @@ namespace DieselEngineFormats.Font
 
         private const int EndTag = 925913978;
 
-        public int u1, u2, u3, u5, LineHeight, u7, Info_Size;
+        public long u1, u2, u3, u5, Info_Size;
 
-        public short u4, Common_Base;
+        public int u4, u7, Common_Base, LineHeight;
 
         private List<FontCharacter> _characters = new List<FontCharacter>();
 
@@ -119,10 +131,7 @@ namespace DieselEngineFormats.Font
                 });
                 return this._characters; 
             }
-            set 
-            {
-                this._characters = value;
-            }
+            set => this._characters = value;
         }
 
         public DieselFont() {}
@@ -132,7 +141,7 @@ namespace DieselEngineFormats.Font
             this.ReadBMFontXmlFile(xmlReader);
         }
 
-        public DieselFont(string filepath)
+        public DieselFont(string filepath, bool large)
         {
             using (FileStream str = new FileStream(filepath, FileMode.Open, FileAccess.Read))
             {
@@ -140,7 +149,7 @@ namespace DieselEngineFormats.Font
                 {
                     try
                     {
-                        this.ReadDieselFile(br);
+                        this.ReadDieselFile(br, large);
                     }
                     catch (Exception exc)
                     {
@@ -150,13 +159,13 @@ namespace DieselEngineFormats.Font
             }
         }
 
-        public DieselFont(Stream str)
+        public DieselFont(Stream str, bool large)
         {
             using (BinaryReader br = new BinaryReader(str))
             {
                 try
                 {
-                    this.ReadDieselFile(br);
+                    this.ReadDieselFile(br, large);
                 }
                 catch (Exception exc)
                 {
@@ -165,11 +174,11 @@ namespace DieselEngineFormats.Font
             }
         }
 
-        public DieselFont(BinaryReader br)
+        public DieselFont(BinaryReader br, bool large)
         {
             try
             {
-                this.ReadDieselFile(br);
+                this.ReadDieselFile(br, large);
             }
             catch (Exception exc)
             {
@@ -188,7 +197,7 @@ namespace DieselEngineFormats.Font
                     {
                         case "info":
                             this.Name = readXML.GetAttribute("face");
-                            this.Info_Size = int.Parse(readXML.GetAttribute("size"));
+                            this.Info_Size = long.Parse(readXML.GetAttribute("size"));
                             break;
                         case "common":
                             this.LineHeight = int.Parse(readXML.GetAttribute("lineHeight"));
@@ -205,7 +214,7 @@ namespace DieselEngineFormats.Font
                                 W = byte.Parse(readXML.GetAttribute("width")),
                                 H = byte.Parse(readXML.GetAttribute("height")),
                                 XOffset = sbyte.Parse(readXML.GetAttribute("xoffset")),
-                                YOffset = sbyte.Parse(readXML.GetAttribute("yoffset")),
+                                YOffset = short.Parse(readXML.GetAttribute("yoffset")),
                                 XAdvance = byte.Parse(readXML.GetAttribute("xadvance")),
                             };
                             this.Characters.Add(fontChar);
@@ -216,43 +225,73 @@ namespace DieselEngineFormats.Font
         }
         #endregion
 
-        #region Diesel
-        public void ReadDieselFile(BinaryReader br)
+        public int ReadShortOrInt(BinaryReader br, bool large)
         {
+            return large ? br.ReadInt32() : br.ReadInt16();
+        }
+
+        public long ReadInt(BinaryReader br, bool large)
+        {
+            return large ? br.ReadInt64() : br.ReadInt32();
+        }
+
+        public void WriteInt(BinaryWriter bw, long i, bool large)
+        {
+            if (large)
+                bw.Write(i);
+            else
+                bw.Write((int)i);
+        }
+
+        public void WriteInt(BinaryWriter bw, int i, bool large)
+        {
+            if (large)
+                bw.Write(i);
+            else
+                bw.Write((short)i);
+        }
+
+        #region Diesel
+        public void ReadDieselFile(BinaryReader br, bool large=false)
+        {
+            //Normal: 92 bytes large: 168 bytes
+
+            //Some values in raid seem to be complete 0 like u1.
+
             br.BaseStream.Position = 0;
 
-            int charCount = br.ReadInt32();//Count
-            br.ReadInt32();//Count
+            long charCount = ReadInt(br, large);//Count
+            ReadInt(br, large);//Count
 
-            int fontRectPos = br.ReadInt32();
+            long fontRectPos = ReadInt(br, large);
 
-            this.u1 = br.ReadInt32();//Unknown
-            this.u2 = br.ReadInt32();//Unknown
+            this.u1 = ReadInt(br, large);//Unknown(seems like in the case of system_font in raid it was turned into a zero and long lol)
+            this.u2 = ReadInt(br, large);//Unknown
 
-            br.ReadInt32();//Count
-            br.ReadInt32();//Count
+            ReadInt(br, large);//Count
+            ReadInt(br, large);//Count
 
-            int asciiCharsPos = br.ReadInt32();
+            long asciiCharsPos = ReadInt(br, large);
 
-            br.ReadInt32();//Unknown, Same as L52
-            this.u3 = br.ReadInt32();//Unknown
-            this.u4 = br.ReadInt16();//Unknown Short at end seems to be base
-            this.Common_Base = br.ReadInt16();
+            ReadInt(br, large);//Unknown, same as pos 12 or 24 in raid.
+            this.u3 = ReadInt(br, large);//Unknown
+            this.u4 = ReadShortOrInt(br, large);//Unknown Short at end seems to be base
+            this.Common_Base = ReadShortOrInt(br, large);
 
-            int kernings = br.ReadInt32();
-            br.ReadInt32();
+            long kernings = ReadInt(br, large);
+            ReadInt(br, large);//Unknown (the count of kernings again?)
 
-            int kerningPos = br.ReadInt32();
+            long kerningPos = ReadInt(br, large);
 
             bool hasKerning = kerningPos != 0;
 
-            br.ReadInt32();//Unknown, same as L52
-            this.u5 = br.ReadInt32();//Unknown
-            br.ReadInt32();//Unknown
+            ReadInt(br, large);//Unknown, same as pos 12
+            this.u5 = ReadInt(br, large);//Unknown
+            ReadInt(br, large);//Unknown, same as pos 12
 
-            int endPos = br.ReadInt32();
+            long endPos = ReadInt(br, large);
 
-            int kernCount = (endPos - kerningPos) / 12;
+            long kernCount = (endPos - kerningPos) / 12;
 
             this.LineHeight = br.ReadInt32(); //Line Height
 
@@ -262,7 +301,7 @@ namespace DieselEngineFormats.Font
 
             this.u7 = br.ReadInt32(); //Sometimes the same as LineHeight
 
-            this.Info_Size = br.ReadInt32(); //base?
+            this.Info_Size = ReadInt(br, large); //base?
 
             if (br.BaseStream.Position != fontRectPos)
             {
@@ -271,9 +310,7 @@ namespace DieselEngineFormats.Font
             }
 
             for (int i = 0; i < charCount; i++)
-            {
                 this._characters.Add(new FontCharacter(br));
-            }
 
             if ((charCount % 2) != 0)
                 br.ReadInt16();
@@ -293,12 +330,8 @@ namespace DieselEngineFormats.Font
             }
 
             if (hasKerning)
-            {
                 for (int i = 0; i < kernCount; i++)
-                {
                     this.kerning.Add(new FontKerning(br));
-                }
-            }
 
             if (br.BaseStream.Position != endPos)
             {
@@ -316,47 +349,50 @@ namespace DieselEngineFormats.Font
             br.ReadInt32(); //End Tag
         }
 
-        public void WriteDieselData(BinaryWriter bw)
+        public void WriteDieselData(BinaryWriter bw, bool large=false)
         {
-            int charCount = this._characters.Count;
-            bw.Write(charCount);
-            bw.Write(charCount);
+            long charCount = this._characters.Count;
+            WriteInt(bw, charCount, large);
+            WriteInt(bw, charCount, large);
+
+            long startPos = large ? 168 : 92;
 
             //font rect pos
-            bw.Write(92);
+            WriteInt(bw, startPos, large);
 
-            bw.Write(this.u1);
-            bw.Write(this.u2);
+            WriteInt(bw, u1, large);
+            WriteInt(bw, u2, large);
 
-            bw.Write(charCount);
-            bw.Write(charCount);
+            WriteInt(bw, charCount, large);
+            WriteInt(bw, charCount, large);
 
             //asciiID pos
-            bw.Write(92 + (charCount * 10) + ((charCount % 2) != 0 ? 2 : 0));
+            WriteInt(bw, startPos + (charCount * (large ? 12 : 10)) + ((charCount % 2) != 0 ? 2 : 0), large);
 
-            bw.Write(this.u1);
-            bw.Write(this.u3);
-            bw.Write(this.u4);
-            bw.Write(this.Common_Base);
+            WriteInt(bw, u1, large);
+            WriteInt(bw, u3, large);
+            WriteInt(bw, u4, large);
+            WriteInt(bw, Common_Base, large);
 
-            bw.Write(this.kerning.Count);
-            bw.Write(this.kerning.Count);
+            long kernings = kerning.Count;
+            WriteInt(bw, kernings, large);
+            WriteInt(bw, kernings, large);
 
             //Kerning pos
-            bw.Write((this.HasKerning ? 92 + (charCount * 18) : 0) + ((charCount % 2) != 0 ? 2 : 0));
+            WriteInt(bw, (HasKerning ? startPos + (charCount * 18) : 0) + ((charCount % 2) != 0 ? 2 : 0), large);
 
-            bw.Write(this.u1);
-            bw.Write(this.u5);
-            bw.Write(this.u1);
+            WriteInt(bw, u1, large);
+            WriteInt(bw, u5, large);
+            WriteInt(bw, u1, large);
 
             //end pos
-            bw.Write(92 + (charCount * 18) + (this.kerning.Count * 12) + ((charCount % 2) != 0 ? 2 : 0));
+            WriteInt(bw, startPos + (charCount * 18) + (kerning.Count * 12) + ((charCount % 2) != 0 ? 2 : 0), large);
 
-            bw.Write(this.LineHeight);
-            bw.Write(this.TextureWidth);
-            bw.Write(this.TextureHeight);
-            bw.Write(this.u7 != 0 ? this.LineHeight : this.u7);
-            bw.Write(this.Info_Size);
+            bw.Write(LineHeight);
+            bw.Write(TextureWidth);
+            bw.Write(TextureHeight);
+            bw.Write(u7 != 0 ? LineHeight : u7);
+            WriteInt(bw, Info_Size, large);
 
             this._characters.Sort(delegate(FontCharacter x, FontCharacter y)
             {
@@ -364,9 +400,7 @@ namespace DieselEngineFormats.Font
             });
 
             foreach(FontCharacter fontChar in this._characters)
-            {
-                fontChar.WriteMainSection(bw);
-            }
+                fontChar.WriteMainSection(bw, large);
 
             if ((charCount % 2) != 0)
                 bw.Write((short)0);
@@ -377,19 +411,14 @@ namespace DieselEngineFormats.Font
             });
 
             foreach (FontCharacter fontChar in this._characters)
-            {
                 fontChar.WriteCodeIDSection(bw);
-            }
 
             foreach (FontKerning fontKern in this.kerning)
-            {
                 fontKern.WriteStream(bw);
-            }
             
             foreach (char nameChar in this.Name)
-            {
                 bw.Write(nameChar);
-            }
+
             bw.Write((byte)0);
             while (bw.BaseStream.Position % 4 != 0)
                 bw.Write((byte)0);
