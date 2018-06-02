@@ -185,8 +185,9 @@ namespace DieselEngineFormats.Font
                 Console.WriteLine(exc.Message);
             }
         }
-        
+
         #region BMFont
+
         public void ReadBMFontXmlFile(XmlReader readXML)
         {
             while (readXML.Read())

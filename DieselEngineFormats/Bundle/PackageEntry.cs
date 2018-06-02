@@ -1,5 +1,6 @@
 ﻿namespace DieselEngineFormats.Bundle
 {
+    using System;
     using System.IO;
 
     /// <summary>
@@ -43,28 +44,23 @@
 
         #region Public Methods and Operators
 
-        public PackageFileEntry(BinaryReader br, bool has_length = false)
-        {
-            this.ReadEntry(br, has_length);
-        }
+        public PackageFileEntry(BinaryReader br, bool readLength = false) => ReadEntry(br, readLength);
 
         /// <summary>
         /// The read entry.
         /// </summary>
         /// <param name="br">
-        /// The br.
+        /// a basic BinaryReader.
         /// </param>
         /// <param name="readLength">
-        /// The read length.
+        /// does the header contain information about the length?.
         /// </param>
         public void ReadEntry(BinaryReader br, bool readLength = false)
         {
             this.ID = br.ReadUInt32();
             this.Address = br.ReadUInt32();
             if (readLength)
-            {
                 this.Length = br.ReadInt32();
-            }
         }
 
         /// <summary>
@@ -92,9 +88,7 @@
             writer.Write(this.ID);
             writer.Write(this.Address);
             if (writeLength)
-            {
                 writer.Write(this.Length);
-            }
         }
 
         #endregion

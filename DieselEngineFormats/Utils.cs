@@ -250,27 +250,25 @@ namespace DieselEngineFormats.Utils
 
         public static void GenerateHashlist(string workingPath, PackageDatabase bundleDB)
         {
-            List<string> headers = Directory.EnumerateFiles(workingPath, "all_*_h.bundle").ToList();
+            List<string> bundles = Directory.EnumerateFiles(workingPath, "all_*.bundle").ToList();
 
-            foreach (string file in (headers.Count == 0 ? Directory.EnumerateFiles(workingPath, "all_*.bundle") : headers))
+            foreach (string file in bundles)
             {
-                string bundle_file = file.Replace("_h", "");
-                if (File.Exists(bundle_file))
+                if (file.EndsWith("_h.bundle"))
+                    continue;
+
+				PackageHeader bundle = new PackageHeader(file);
+                foreach (PackageFileEntry be in bundle.Entries)
                 {
-					PackageHeader bundle = new PackageHeader(file);
-                    foreach (PackageFileEntry be in bundle.Entries)
+                    DatabaseEntry ne = bundleDB.EntryFromID(be.ID);
+                    if (ne == null)
+                        continue;
+
+                    if (ne._path == 0x9234DD22C60D71B8 && ne._extension == 0x9234DD22C60D71B8)
                     {
-                        DatabaseEntry ne = bundleDB.EntryFromID(be.ID);
-                        if (ne == null)
-                            continue;
-
-                        if (ne._path == 0x9234DD22C60D71B8 && ne._extension == 0x9234DD22C60D71B8)
-                        {
-                            GenerateHashlist(workingPath, Path.Combine(workingPath, bundle_file), be);
-                            return;
-                        }
+                        GenerateHashlist(workingPath, Path.Combine(workingPath, file.Replace("_h", "")), be);
+                        return;
                     }
-
                 }
             }
         }

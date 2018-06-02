@@ -37,12 +37,12 @@
         /// <summary>
         ///     Gets or sets the name entry path hash.
         /// </summary>
-        public Idstring Path { get {
-                if (this._ids_path == null)
-                    this._ids_path = HashIndex.Get(this._path);
+        public Idstring Path {get {
+            if (this._ids_path == null)
+                this._ids_path = HashIndex.Get(this._path);
 
-                return this._ids_path;
-            } }
+            return this._ids_path;
+        }}
 
         /// <summary>
         ///     Gets or sets the ID of the entry

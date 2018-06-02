@@ -34,19 +34,19 @@
         /// </summary>
         public bool HasLengthField = false;
 
+        /// <summary>
+        ///     Does the header contain information about multiple bundles?
+        /// </summary>
+        public bool multiBundle;
+
+        /// <summary>
+        ///     Is the header from a 64 bit diesel game(such as Raid WW2)?
+        /// </summary>
+        public bool x64;
+
         private BundleHeaderConfig _config = Defs.PD2Config;
 
-        public BundleHeaderConfig Config
-        {
-            get
-            {
-                return this._config;
-            }
-            set
-            {
-                this._config = value;
-            }
-        }
+        public BundleHeaderConfig Config  { get => this._config; set => this._config = value; }
 
         /// <summary>
         /// The _entries.
@@ -56,7 +56,7 @@
         /// <summary>
         /// The _references.
         /// </summary>
-        private List<PackageFooterEntry> _references = new List<PackageFooterEntry>();
+        //private List<PackageFooterEntry> _references = new List<PackageFooterEntry>();
 
 		private Idstring _name;
 
@@ -67,24 +67,12 @@
         /// <summary>
         ///     Gets list of bundle file entries
         /// </summary>
-        public List<PackageFileEntry> Entries
-        {
-            get
-            {
-                return this._entries;
-            }
-        }
+        public List<PackageFileEntry> Entries { get => this._entries; }
 
         /// <summary>
         ///     Gets list of reference entries
         /// </summary>
-        public List<PackageFooterEntry> References
-        {
-            get
-            {
-                return this._references;
-            }
-        }
+        //public List<PackageFooterEntry> References { get => this._references; }
 
         /// <summary>
         ///     Gets or sets
@@ -94,23 +82,17 @@
         /// <summary>
         ///     The header.
         /// </summary>
-        public List<uint> Header { get; set; }
+        public List<ulong> Header { get; set; }
 
-        public Idstring Name { 
-			get { return this._name; } 
-			set { this._name = value; } 
-		}
+        public Idstring Name { get => this._name; set => this._name = value; }
 
         #endregion
 
         #region Public Methods and Operators
 
 		public PackageHeader () { }
-
-		public PackageHeader (string bundleId)
-		{
-			this.Load(bundleId);
-		}
+		public PackageHeader (string bundleId) => Load(bundleId);
+		
 
         /// <summary>
         /// The load.
@@ -121,157 +103,202 @@
         /// <returns>
         /// The <see cref="bool"/>.
         /// </returns>
-        public bool Load(string bundle_path)
+        public bool Load(string bundleFile)
         {
-            if (!File.Exists(bundle_path))
+            string bundleName = bundleFile.Replace(".bundle", "");
+            string headerFile = bundleName + "_h.bundle";
+            bool useAllHeader = false;
+            if (!File.Exists(headerFile))
             {
-                Console.WriteLine("Bundle header file does not exist.");
-                return false;
+                string all_h = Path.GetDirectoryName(bundleName) + "\\all_h.bundle";
+                if (Path.GetFileName(bundleName).StartsWith("all_") && File.Exists(all_h))
+                {
+                    headerFile = all_h;
+                    useAllHeader = true;
+                }
+                else
+                {
+                    Console.WriteLine("Package header does not exist! {0}", headerFile);
+                    return false;
+                }
             }
-			this._name = (Idstring)General.BundleNameToPackageID (Path.GetFileNameWithoutExtension (bundle_path).Replace("_h", "")).Clone();
+
+            this._name = (Idstring)General.BundleNameToPackageID (Path.GetFileName(bundleName)).Clone();
             this._name.SwapEdianness();
 
             try
             {
-                using (var fs = new FileStream(bundle_path, FileMode.Open))
+                using (var fs = new FileStream(headerFile, FileMode.Open))
                 {
                     using (var br = new BinaryReader(fs))
                     {
-                        bool confSet = false;
-
-                        if (bundle_path.Contains("all_"))
-                            Console.WriteLine();
-
-                        this.Header = new List<uint>{
-                            br.ReadUInt32(), //ref offset
-							br.ReadUInt32(), //tag / count
-							br.ReadUInt32(), //linux:tag / count
- 							br.ReadUInt32(), // offset / count
-						};
-
-                        if (this.Header[1] != this.Header[2]) this.Header.Add(br.ReadUInt32());
-
-                        uint refOffset = this.Header[0];
-
-                        uint itemCount = 0, offset = 0;
-
-                        for (int i = 1; i < (this.Header.Count - 1); i++)
-                        {
-                            if (this.Header[i] == this.Header[i + 1])
-                            {
-                                itemCount = this.Header[i];
-                                if (this.Header.Count <= i + 2)
-                                {
-                                    this.Header.Add(br.ReadUInt32());
-                                }
-                                offset = this.Header[i + 2];
-                                if (i != 1)
-                                {
-                                    /*if (this.Header[1] == 0)
-                                    {
-                                        offset += 4;
-                                    }
-                                    else*/
-                                        this.HasLengthField = true;
-                                }
-
-                                break;
-                            }
-                        }
-
-                        if (br.BaseStream.Position < offset)
-                        {
-                            uint amount = ((offset - (uint)br.BaseStream.Position) / 4);
-                            for (uint i = 0; i < amount; i++)
-                                this.Header.Add(br.ReadUInt32());
-                        }
-
-                        if (offset == 0)
-                            offset = refOffset - 4;
-
-						br.BaseStream.Position = offset;
-
-                        uint entryTag = br.ReadUInt32();
-
-                        if (!confSet)
-                        {
-                            List<BundleHeaderConfig> configs = Defs.ConfigLookup.FindAll(conf => this.HasLengthField ? conf.EntryStartLengthTag.Equals(entryTag) : conf.EntryStartTag.Equals(entryTag));
-                            if (configs.Count == 1)
-                            {
-                                this.Config = configs[0]; 
-                                
-                                confSet = true;
-                            }
-                        }
-
-                        for (int i = 0; i < itemCount; ++i)
-                        {
-                            var be = new PackageFileEntry(br, this.HasLengthField) { Parent = this };
-
-                            this._entries.Add(be);
-
-                            if (this.HasLengthField || i <= 0)
-                                continue;
-
-                            PackageFileEntry pbe = this._entries[i - 1];
-							pbe.Length = (int)(be.Address - pbe.Address);
-                        }
-
-                        if (itemCount > 0 && !this.HasLengthField)
-                        {
-							string bundleFile;
-							if (!File.Exists(bundleFile = bundle_path.Replace("_h", "")))
-                                this._entries[this._entries.Count - 1].Length = -1;
-                            else
-                            {
-                                if (bundleFile == bundle_path)
-                                    this._entries[this._entries.Count - 1].Length = (int)(((uint)fs.Length) - this._entries[this._entries.Count - 1].Address);
-                                else
-                                {
-                                    long length = new System.IO.FileInfo(bundleFile).Length;
-                                    this._entries[this._entries.Count - 1].Length = (int)(((uint)length) - this._entries[this._entries.Count - 1].Address);
-                                }
-                            }
-                        }
-
-                        //Footer breakdown
-                        /*
-                         * uint32 - tag
-                         * uint32 - section size
-                         * uint32 - count
-                         * uint32 - unknown
-                         * uint32 - unknown
-                         * uint32 - tag?
-                         * foreach (count):
-                         *  uint64 - hash (extension)
-                         *  uint64 - hash (path)
-                         * uint32 - end?
-                         * uint32 (0) - end
-                        */
-                        uint sectag = br.ReadUInt32();
-
-                        if (sectag.Equals(this.Config.ReferenceStartTag))
-                            this.ReadFooter(br);
-
-                        //this.Footer = br.ReadBytes((int)(br.BaseStream.Length - br.BaseStream.Position));
-                        //uint val = Convert.ToUInt32(this.Footer[0]);
-
-                        //if (confSet)
-                            //Console.WriteLine("Bundle Config detected!");
+                        if (useAllHeader)
+                            return ReadMultiBundleHeader(br, int.Parse(Path.GetFileName(bundleName.Replace("all_", ""))));
+                        else
+                            return ReadHeader(br, bundleFile);
                     }
                 }
             }
-            catch (Exception exc)
+            catch (Exception ex)
             {
-                Console.WriteLine(exc.Message);
-
+                Console.WriteLine(ex);
                 return false;
             }
+        }
+
+        public bool ReadHeader(BinaryReader br, string bundleFile)
+        {
+
+            bool confSet = false;
+
+            br.BaseStream.Position = 8;
+            if (br.ReadUInt32() == 0 && br.ReadUInt32() != 0)
+                x64 = true;
+            br.BaseStream.Position = 0;
+
+            if (x64)
+            {
+                Header = new List<ulong>{
+                    br.ReadUInt32(),
+                    br.ReadUInt64(),
+                    br.ReadUInt64(),
+                    br.ReadUInt64()
+                };
+            }
+            else
+            {
+                Header = new List<ulong>{
+                    br.ReadUInt32(),//ref offset
+                    br.ReadUInt32(),//tag / count
+                    br.ReadUInt32(),//linux:tag / count
+                    br.ReadUInt32() // offset / count
+                };
+            }
+
+            if (Header[1] != Header[2])
+                Header.Add(br.ReadUInt32());
+
+            ulong itemCount = 0, offset = 0, refOffset = Header[0];
+
+            for (int i = 1; i < (this.Header.Count - 1); i++)
+            {
+                if (this.Header[i] == this.Header[i + 1])
+                {
+                    itemCount = Header[i];
+                    if (Header.Count <= i + 2)
+                        Header.Add(br.ReadUInt32());
+
+                    offset = Header[i + 2];
+                    if (i != 1)
+                        this.HasLengthField = true;
+
+                    break;
+                }
+            }
+
+            if (br.BaseStream.Position < (long)offset)
+            {
+                ulong amount = (offset - (ulong)br.BaseStream.Position) / 4;
+                for (uint i = 0; i < amount; i++)
+                    this.Header.Add(br.ReadUInt32());
+            }
+
+            if (offset == 0)
+                offset = refOffset - 4;
+
+            br.BaseStream.Position = (long)offset;
+
+            uint entryTag = br.ReadUInt32();
+
+            if (!confSet)
+            {
+                List<BundleHeaderConfig> configs = Defs.ConfigLookup.FindAll(conf => this.HasLengthField ? conf.EntryStartLengthTag.Equals(entryTag) : conf.EntryStartTag.Equals(entryTag));
+                if (configs.Count == 1)
+                {
+                    this.Config = configs[0];
+
+                    confSet = true;
+                }
+            }
+
+            for (int i = 0; i < (int)itemCount; ++i)
+                ReadEntry(br, i);
+            
+            //Correct last entry length
+            if (itemCount > 0 && !this.HasLengthField)
+            {
+                 uint length = (uint)new FileInfo(bundleFile).Length;
+                 this._entries[this._entries.Count-1].Length = (int)(length - this._entries[this._entries.Count-1].Address);
+            }
+
+            this.Footer = br.ReadBytes((int)(br.BaseStream.Length - br.BaseStream.Position));
+
+            /*uint sectag = br.ReadUInt32();
+            if (sectag.Equals(this.Config.ReferenceStartTag))
+                this.ReadFooter(br);
+            */
 
             return true;
         }
 
-        public void ReadFooter(BinaryReader br)
+        private void ReadEntry(BinaryReader br, int i)
+        {
+            var be = new PackageFileEntry(br, HasLengthField) { Parent = this };
+            this._entries.Add(be);
+
+            if (HasLengthField || i <= 0)
+                return;
+
+            PackageFileEntry pbe = this._entries[i - 1];
+            pbe.Length = (int)(be.Address - pbe.Address);
+        }
+
+        public bool ReadMultiBundleHeader(BinaryReader br, long bundleNum)
+        {
+            //Based of https://steamcommunity.com/app/218620/discussions/15/1474221865204158003/
+            HasLengthField = true;
+            multiBundle = true;
+
+            Header = new List<ulong>()
+            {
+                br.ReadUInt32(), //eof
+                br.ReadUInt32(), //bundle count
+                br.ReadUInt32(), //unknown
+                br.ReadUInt32(), //unknown
+                br.ReadUInt32(), //unknown
+            };
+
+            for (long i = 0; i < (long)Header[1]; i++)
+            {
+                long Index = br.ReadInt64();
+                uint entryCount1 = br.ReadUInt32();
+
+                uint entryCount2 = br.ReadUInt32();
+                ulong Offset = br.ReadUInt64();
+                uint One = br.ReadUInt32();
+
+                if (One == 1 && entryCount1 == entryCount2)
+                {
+                    if (Index == bundleNum)
+                    {
+                        br.BaseStream.Position = (long)Offset + 4;
+                        for (int x = 0; x < entryCount1; x++)
+                            ReadEntry(br, x);
+
+                        return true;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        //Unused atm
+        private void ReadFooter(BinaryReader br)
         {
             //Footer breakdown
             /*
@@ -293,10 +320,8 @@
             uint entry_size = br.ReadUInt32();
             uint tag = br.ReadUInt32();
 
-            for (int i = 0; i < count; i++)
-            {
-                this._references.Add(new PackageFooterEntry(br));
-            }
+            //for (int i = 0; i < count; i++)
+              //  this._references.Add(new PackageFooterEntry(br));
 
         }
 
@@ -324,7 +349,7 @@
         {
             writer.Write((uint)((this.HasLengthField ? 7 + this.Entries.Count * 3 : 5 + this.Entries.Count * 2) * 4));
 
-            if (this.HasLengthField)
+            if (HasLengthField)
                 writer.Write(config.HeaderStartLengthTag);
             else if (config.HeaderStartEmptyTag)
                 writer.Write((uint)0);
@@ -334,7 +359,7 @@
 
             writer.Write(this.HasLengthField ? 24 : 16);
 
-            if (this.HasLengthField)
+            if (HasLengthField)
             {
                 writer.Write(config.HeaderEndLengthTag);
                 writer.Write(config.EntryStartLengthTag);
@@ -342,15 +367,16 @@
             else
                 writer.Write(config.EntryStartTag);
 
-            foreach (PackageFileEntry entry in this.Entries)
-            {
-                entry.WriteEntry(writer, this.HasLengthField);
-            }
+            foreach (PackageFileEntry entry in Entries)
+                entry.WriteEntry(writer, HasLengthField);
 
-            writer.Write(this.Footer);
-
-            if (config.EmptyEndInt && this.Footer[this.Footer.Length - 1] != 0)
+            if (config.EmptyEndInt && this.Footer[Footer.Length - 1] != 0)
                 writer.Write((uint)0);
+
+            /*
+            if (config.EmptyEndInt && this.Footer[Footer.Length - 1] != 0)
+                writer.Write((uint)0);
+             */
         }
 
         /// <summary>
@@ -396,5 +422,7 @@
         public uint EndTag { get; set; }
 
         public bool EmptyEndInt { get; set; }
+
+        public bool Is64;
     }
 }

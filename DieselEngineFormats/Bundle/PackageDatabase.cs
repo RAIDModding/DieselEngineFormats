@@ -52,10 +52,7 @@
 
 		public PackageDatabase () { }
 
-		public PackageDatabase (string path)
-		{
-			this.Load (path);	
-		}
+		public PackageDatabase (string path) => Load(path);	
 
         /// <summary>
         /// The add to languages.
@@ -233,43 +230,49 @@
         {
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
-                using (var reader = new BinaryReader(fs))
+                using (var br = new BinaryReader(fs))
                 {
-                    bool linux = false;
-                    /*#if LINUX
-						reader.BaseStream.Position += 8;
-					#else*/
-                    reader.BaseStream.Position += 4;
-                    //#endif                
-                    uint lang_count = reader.ReadUInt32();
+                    bool x64 = false;
+                    bool raid = false;
+
+                    br.BaseStream.Position += 4;
+
+                    uint lang_count = br.ReadUInt32();
                     if (lang_count == 0)
                     {
-                        linux = true;
-                        lang_count = reader.ReadUInt32();
+                        x64 = true;
+                        lang_count = br.ReadUInt32();
+                        if (br.ReadUInt32() == 0)
+                            raid = true;
                     }
 
-                    reader.BaseStream.Position += 4;
+
+                    if (raid)
+                        br.BaseStream.Position += 8;
+                    else if (!x64)
+                        br.BaseStream.Position += 4;
 
                     uint lang_offset;
 
-                    if (linux)
-                    {
-                        lang_offset = (uint)reader.ReadUInt64();
-                        reader.BaseStream.Position += 24;
-                    }
-                    else {
-                        lang_offset = reader.ReadUInt32();
-                        reader.BaseStream.Position += 12;
-                    }
+					if (x64) {
+						lang_offset = (uint)br.ReadUInt64();
+						br.BaseStream.Position += 24;
+                    } else {
+						lang_offset = br.ReadUInt32();
+						br.BaseStream.Position += 12;
+					}
 
-                    uint file_entries_count = reader.ReadUInt32();
-                    reader.BaseStream.Position += 4;
+                    uint file_entries_count = br.ReadUInt32();
+                    if (raid)
+                        br.BaseStream.Position += 12;
+                    else
+                        br.BaseStream.Position += 4;
 
                     uint file_entries_offset;
-                    if (linux)
-                        file_entries_offset = (uint)reader.ReadUInt64();
+                    if (x64)
+                        file_entries_offset = (uint)br.ReadUInt64();
                     else
-                        file_entries_offset = reader.ReadUInt32();
+                        file_entries_offset = br.ReadUInt32();
 
                     //Languages
                     fs.Position = lang_offset;
@@ -277,9 +280,9 @@
                     {
                         for (int i = 0; i < lang_offset; ++i)
                         {
-                            ulong language_hash = reader.ReadUInt64();
-                            uint language_representation = reader.ReadUInt32();
-                            uint language_unknown = reader.ReadUInt32();
+                            ulong language_hash = br.ReadUInt64();
+                            uint language_representation = br.ReadUInt32();
+                            uint language_unknown = br.ReadUInt32();
 
                             this.AddLang(language_hash, language_representation, language_unknown);
                         }
@@ -297,12 +300,12 @@
                     {
                         for (int i = 0; i < file_entries_count; ++i)
                         {
-                            ulong ext = reader.ReadUInt64();
-                            ulong fpath = reader.ReadUInt64();
-                            uint language = reader.ReadUInt32();
-                            uint u1 = reader.ReadUInt32();
-                            uint id = reader.ReadUInt32();
-                            uint u2 = reader.ReadUInt32();
+                            ulong ext = br.ReadUInt64();
+                            ulong fpath = br.ReadUInt64();
+                            uint language = br.ReadUInt32();
+                            uint u1 = br.ReadUInt32();
+                            uint id = br.ReadUInt32();
+                            uint u2 = br.ReadUInt32();
                             this.AddEntry(ext, fpath, language, id);
                         }
                     }
