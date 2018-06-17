@@ -156,6 +156,9 @@ namespace DieselEngineFormats.Bundle
 
         public static string version;
 
+        public static Idstring Get(Idstring ids) => Get(ids.Hashed);
+        public static string GetUnhashed(ulong ids) => Get(ids).UnHashed;
+ 
         public static Idstring Get(string hash)
         {
             Idstring ids;

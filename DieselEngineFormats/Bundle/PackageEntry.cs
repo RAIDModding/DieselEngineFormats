@@ -44,6 +44,7 @@
 
         #region Public Methods and Operators
 
+        public PackageFileEntry() { }
         public PackageFileEntry(BinaryReader br, bool readLength = false) => ReadEntry(br, readLength);
 
         /// <summary>

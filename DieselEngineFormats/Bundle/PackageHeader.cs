@@ -370,13 +370,13 @@
             foreach (PackageFileEntry entry in Entries)
                 entry.WriteEntry(writer, HasLengthField);
 
-            if (config.EmptyEndInt && this.Footer[Footer.Length - 1] != 0)
-                writer.Write((uint)0);
-
             /*
             if (config.EmptyEndInt && this.Footer[Footer.Length - 1] != 0)
                 writer.Write((uint)0);
              */
+
+            if (this.Footer != null)
+                writer.Write(this.Footer);
         }
 
         /// <summary>
