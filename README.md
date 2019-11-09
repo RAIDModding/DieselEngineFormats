@@ -1,6 +1,6 @@
 Library for reading/writing file types from the Diesel Engine
 
-I don't really have any plans to work on this as I've completely lost interest in doing anything with Payday. I may do some bits here and there in the future. Feel free to fork this repo or make Pull Requests. Code style is kinda all over the place, but I would prefer keeping it to CamelCase.
+I may do some bits here and there in the future. Feel free to fork this repo or make Pull Requests. Code style is kinda all over the place, but I would prefer keeping it to CamelCase.
 
 # Supported File Types
 
