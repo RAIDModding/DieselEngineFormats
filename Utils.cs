@@ -343,7 +343,7 @@ namespace DieselEngineFormats.Utils
 			return str;
 		}
 
-        public static ulong SwapEdianness(ulong id)
+        public static ulong SwapEndianness(ulong id)
         {
             return id = ((0x00000000000000FF) & (id >> 56)
                 | (0x000000000000FF00) & (id >> 40)
@@ -357,7 +357,7 @@ namespace DieselEngineFormats.Utils
 
 		public static bool TryUnHash(ulong id, out Idstring pck)
 		{
-            id = SwapEdianness(id);
+            id = SwapEndianness(id);
 
             pck = HashIndex.Get(id);
 

@@ -111,9 +111,9 @@ namespace DieselEngineFormats.Bundle
             this.HasUnHashed = false;
         }
 
-        public void SwapEdianness()
+        public void SwapEndianness()
         {
-            this._hashed = General.SwapEdianness(this.Hashed);
+            this._hashed = General.SwapEndianness(this.Hashed);
         }
 
         public string Tag { get; set; }

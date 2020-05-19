@@ -123,8 +123,8 @@
                 }
             }
 
-            this._name = (Idstring)General.BundleNameToPackageID (Path.GetFileName(bundleName)).Clone();
-            this._name.SwapEdianness();
+            _name = (Idstring)General.BundleNameToPackageID(Path.GetFileName(bundleName)).Clone();
+            _name.SwapEndianness();
 
             try
             {
