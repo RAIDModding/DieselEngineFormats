@@ -86,6 +86,8 @@
 
         public Idstring Name { get => this._name; set => this._name = value; }
 
+        public string BundleName { get; private set; }
+
         #endregion
 
         #region Public Methods and Operators
@@ -105,13 +107,17 @@
         /// </returns>
         public bool Load(string bundleFile)
         {
+
             string bundleName = bundleFile.Replace(".bundle", "");
             string headerFile = bundleName + "_h.bundle";
+
+            BundleName = Path.GetFileName(bundleName);
+
             bool useAllHeader = false;
             if (!File.Exists(headerFile))
             {
                 string all_h = Path.GetDirectoryName(bundleName) + "\\all_h.bundle";
-                if (Path.GetFileName(bundleName).StartsWith("all_") && File.Exists(all_h))
+                if (BundleName.StartsWith("all_") && File.Exists(all_h))
                 {
                     headerFile = all_h;
                     useAllHeader = true;
