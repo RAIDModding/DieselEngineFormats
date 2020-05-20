@@ -130,8 +130,10 @@ namespace DieselEngineFormats
         public AnimationObject GetObjectByName(string Name)
         {
             foreach (AnimationObject animObject in Objects)
+            {
                 if (animObject.Name.Equals(Name))
                     return animObject;
+            }
 
             return null;
         }
