@@ -13,17 +13,7 @@ namespace DieselEngineFormats
     //Some things I wrote might be a little weird as I didn't deal with binary things as much.
     //A little messy too
 
-    //Structure
-
-    //Start
-    //Offsets of object names
-    //Object names
-    //Positions for sound cue names + frame for each cue.
-    //Sound cue names
-    //Offsets of positions (For each object, each position starts with a frame)
-    //Positions
-    //Offsets of rotations (For each object, each rotation starts with a frame)
-    //Rotations
+    //Structure: https://wiki.modworkshop.net/books/payday-2/page/animation-format Thanks Cpone for further research.
 
     public class AnimationSoundCue //Assumption, please confirm
     {
@@ -40,22 +30,28 @@ namespace DieselEngineFormats
 
     public class AnimPosition
     {
-        public float currentFrame;
-        public int Unknwon1;
-        public int Unknwon2;
+        public float Seconds;
+        public short X;
+        public short Y;
+        public short Z;
+        public short Unknown;
 
-        public AnimPosition(float? frame = null, int? unknwon1 = null, int? unknwon2 = null)
+        public AnimPosition(float? seconds = null, short? x = null, short? y = null, short? z = null, short? unknown = null)
         {
-            currentFrame = frame ?? 0f;
-            Unknwon1 = unknwon1 ?? 0;
-            Unknwon2 = unknwon2 ?? 0;
+            Seconds = seconds ?? 0f;
+            X = x ?? 0;
+            Y = y ?? 0;
+            Z = z ?? 0;
+            Unknown = unknown ?? 0;
         }
 
         public void Write(BinaryWriter bw)
         {
-            bw.Write(currentFrame);
-            bw.Write(Unknwon1);
-            bw.Write(Unknwon2);
+            bw.Write(Seconds);
+            bw.Write(X);
+            bw.Write(Y);
+            bw.Write(Z);
+            bw.Write(Unknown);
         }
     }
 
@@ -499,7 +495,7 @@ namespace DieselEngineFormats
                     
                     for (int x = 0; x < animObj.positionFrames; x++)
                     {
-                        animObj.Positions.Add(new AnimPosition(br.ReadSingle(), br.ReadInt32(), br.ReadInt32()));
+                        animObj.Positions.Add(new AnimPosition(br.ReadSingle(), br.ReadInt16(), br.ReadInt16(), br.ReadInt16(), br.ReadInt16()));
                     }
 
                     br.BaseStream.Seek(oldPos, SeekOrigin.Begin);
