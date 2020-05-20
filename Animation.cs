@@ -57,15 +57,15 @@ namespace DieselEngineFormats
 
     public class AnimaRotation : Quaternion
     {
-        public float currentFrame;
-        public AnimaRotation(float? frame = null, float? x = null, float? y = null, float? z = null, float? w = null) : base(x, y, z, w)
+        public float Seconds;
+        public AnimaRotation(float? seconds = null, float? x = null, float? y = null, float? z = null, float? w = null) : base(x, y, z, w)
         {
-            currentFrame = frame ?? 0f;
+            Seconds = seconds ?? 0f;
         }
 
         public override void Write(BinaryWriter bw)
         {
-            bw.Write(currentFrame);
+            bw.Write(Seconds);
             bw.Write(X);
             bw.Write(Y);
             bw.Write(Z);
