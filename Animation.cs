@@ -138,37 +138,31 @@ namespace DieselEngineFormats
 
         public void Read(string filePath)
         {
-            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                Read(fs);
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            Read(fs);
         }
 
         public void Read(Stream stream)
         {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                General.ZLibDecompress(stream, ms);
-                Console.WriteLine("Memory stream length " + ms.Length);
-                using (var br = new BinaryReader(ms))
-                    ReadRaw(br);
-            }
+            using MemoryStream ms = new MemoryStream();
+            General.ZLibDecompress(stream, ms);
+            Console.WriteLine("Memory stream length " + ms.Length);
+            using var br = new BinaryReader(ms);
+            ReadRaw(br);
         }
 
         public void Write(string filePath)
         {
-            using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                Write(fs);
+            using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+            Write(fs);
         }
 
         public void Write(Stream stream)
         {
-            using (var ms = new MemoryStream())
-            {
-                using (var bw = new BinaryWriter(ms))
-                {
-                    WriteRaw(bw);
-                    General.ZLibCompress(ms, stream);
-                }
-            }
+            using var ms = new MemoryStream();
+            using var bw = new BinaryWriter(ms);
+            WriteRaw(bw);
+            General.ZLibCompress(ms, stream);
         }
 
         public void WriteRaw(BinaryWriter bw)
@@ -202,7 +196,9 @@ namespace DieselEngineFormats
 
             long lastObjectNameOffsetPos = bw.BaseStream.Position;
             for (int i = 0; i < Objects.Count; i++)
+            {
                 bw.Write(0); //Offset
+            }
 
             long lastObjectNamePos = bw.BaseStream.Position;
 
@@ -214,8 +210,9 @@ namespace DieselEngineFormats
 
                 string name = Objects[i].Name;
                 Console.WriteLine("Writing name '" + name + "'");
-                for (int x = 0; x < name.Length; x++)
+                for (int x = 0; x < name.Length; x++) { 
                     bw.Write(name[x]);
+                }
                 bw.Write((byte)0);
 
                 long nextObjectNamePos = bw.BaseStream.Position;
@@ -233,8 +230,12 @@ namespace DieselEngineFormats
             //Small thing for the animation to be almost the same as original
             long posCheck = (lastObjectNamePos % 4);
             if(posCheck > 0)
+            {
                 for (int i = 0; i < 4 - posCheck; i++)
+                {
                     bw.Write((byte)0);
+                }
+            }
 
             //Sound cue names offsets + sound cue names
 
@@ -262,7 +263,9 @@ namespace DieselEngineFormats
                     string name = soundCues[i].Name;
                     Console.WriteLine("Writing sound cue name '" + name + "'");
                     for (int x = 0; x < name.Length; x++)
+                    {
                         bw.Write(name[x]);
+                    }
                     bw.Write((byte)0);
 
                     long nextSoundCueNamePos = bw.BaseStream.Position;
@@ -278,8 +281,12 @@ namespace DieselEngineFormats
 
                 posCheck = (lastSoundCueNamePos % 4);
                 if (posCheck > 0)
+                {
                     for (int i = 0; i < 4 - posCheck; i++)
+                    {
                         bw.Write((byte)0);
+                    }
+                }
             }
 
             //Object positions offsets + object positions
@@ -489,7 +496,9 @@ namespace DieselEngineFormats
                     //The first 4 bytes of each frame is 100% a growing float which is probably the frame but the othet two? no idea.
                     
                     for (int x = 0; x < animObj.positionFrames; x++)
+                    {
                         animObj.Positions.Add(new AnimPosition(br.ReadSingle(), br.ReadInt32(), br.ReadInt32()));
+                    }
 
                     br.BaseStream.Seek(oldPos, SeekOrigin.Begin);
                 }
@@ -515,7 +524,9 @@ namespace DieselEngineFormats
                     animObj.rotationFrames = br.ReadUInt32();
                     br.BaseStream.Seek(br.ReadUInt32(), SeekOrigin.Begin);
                     for (int x = 0; x < animObj.rotationFrames; x++)
+                    {
                         animObj.Rotations.Add(new AnimaRotation(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle()));
+                    }
 
                     br.BaseStream.Seek(oldPos, SeekOrigin.Begin);
                 }
