@@ -275,45 +275,47 @@ namespace DieselEngineFormats.Utils
 
         public static void GenerateHashlist(string workingPath, string file, PackageFileEntry be)
         {
-            using (FileStream fs = new FileStream(file, FileMode.Open, FileAccess.Read))
+			ReadHashlistAndLoad(file, be);
+            HashIndex.GenerateHashList(Path.Combine(workingPath, HashlistFile));
+        }
+
+        public static void ReadHashlistAndLoad(string file, PackageFileEntry be)
+        {
+            using FileStream fs = new FileStream(file, FileMode.Open, FileAccess.Read);
+            using BinaryReader br = new BinaryReader(fs);
+
+            byte[] data;
+            StringBuilder sb = new StringBuilder();
+            string[] idstring_data;
+            HashSet<string> new_paths = new HashSet<string>();
+
+            fs.Position = be.Address;
+            if (be.Length == -1)
+                data = br.ReadBytes((int)(fs.Length - fs.Position));
+            else
+                data = br.ReadBytes((int)be.Length);
+
+            foreach (byte read in data)
             {
-                using (BinaryReader br = new BinaryReader(fs))
-                {
-                    byte[] data;
-                    StringBuilder sb = new StringBuilder();
-                    string[] idstring_data;
-                    HashSet<string> new_paths = new HashSet<string>();
-
-                    fs.Position = be.Address;
-                    if (be.Length == -1)
-                        data = br.ReadBytes((int)(fs.Length - fs.Position));
-                    else
-                        data = br.ReadBytes((int)be.Length);
-
-                    foreach (byte read in data)
-                        sb.Append((char)read);
-
-                    idstring_data = sb.ToString().Split('\0');
-                    sb.Clear();
-
-                    foreach (string idstring in idstring_data)
-                    {
-                            new_paths.Add(idstring);
-                    }
-
-                    new_paths.Add("idstring_lookup");
-                    new_paths.Add("existing_banks");
-                    new_paths.Add("engine-package");
-
-                    HashIndex.Clear();
-
-					HashIndex.Load(ref new_paths);
-
-					HashIndex.GenerateHashList(Path.Combine(workingPath, HashlistFile));
-
-                    new_paths.Clear();
-                }
+                sb.Append((char)read);
             }
+
+            idstring_data = sb.ToString().Split('\0');
+            sb.Clear();
+
+            foreach (string idstring in idstring_data)
+            {
+                new_paths.Add(idstring);
+            }
+
+            new_paths.Add("idstring_lookup");
+            new_paths.Add("existing_banks");
+            new_paths.Add("engine-package");
+
+            HashIndex.Load(ref new_paths);
+
+            new_paths.Clear();
+            br.Close();
         }
 
         public static Idstring UnHashString(string ID)

@@ -127,7 +127,7 @@
         /// </param>
         public void AddEntry(ulong extension, ulong path, uint language, uint id)
         {
-            var b = new DatabaseEntry { _extension = extension, _path = path, Language = language, ID = id };
+            var b = new DatabaseEntry { _extension = extension, _path = path, Language = language, ID = id, Parent = this };
             this.Entries[id] = b;
         }
 

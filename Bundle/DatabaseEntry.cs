@@ -1,4 +1,6 @@
-﻿namespace DieselEngineFormats.Bundle
+﻿using System;
+
+namespace DieselEngineFormats.Bundle
 {
     /// <summary>
     ///     The name entry.
@@ -48,6 +50,11 @@
         ///     Gets or sets the ID of the entry
         /// </summary>
         public uint ID { get; set; }
+
+        /// <summary>
+        /// Gets or sets the parent of the entry
+        /// </summary>
+        public PackageDatabase Parent { get; set; }
 
         #endregion
 

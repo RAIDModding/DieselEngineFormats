@@ -10,47 +10,21 @@ namespace DieselEngineFormats.Bundle
 {
     public class Idstring : IComparable, ICloneable
     {
-        private string UniqueUnhashed;
-        private readonly int[] _UnHashedParts;
-
-        public int[] UnHashedParts { get { return this._UnHashedParts; } }
-        
-        public string UnHashed
-        {
-            get
-            {
-                if ((this._UnHashedParts == null || this._UnHashedParts.Length == 0) && this.UniqueUnhashed == null)
-                {
-                    return null;//"ERROR: " + String.Format("{0:x}", HashedString);
-                }
-
-                string built_string = this.UniqueUnhashed;
-                if (this._UnHashedParts != null)
-                {
-                    built_string = HashIndex.LookupString(this._UnHashedParts[0]);
-                    for (int i = 1; i < this._UnHashedParts.Length; i++)
-                    {
-                        built_string += "/" + HashIndex.LookupString(this._UnHashedParts[i]);
-                    }
-                }
-                return built_string;
-            }
-        }
+        private string unhashed;
+        public string UnHashed { get => unhashed ?? HashedString; set => unhashed = value; }
 
         public bool HasUnHashed { get; set; }
 
         public bool Same { get; set; }
 
-        public bool IsPath { get { return (this._UnHashedParts != null && this._UnHashedParts.Length > 1) || this.UnHashed == "existing_banks" || this.UnHashed == "idstring_lookup"; } }
-
         public string HashedString
         {
             get
             {
-                if (this.Same)
-                    return this.UnHashed;
+                if (Same)
+                    return UnHashed;
 
-                string _HashedString = String.Format("{0:x}", this.Hashed);
+                string _HashedString = string.Format("{0:x}", Hashed);
                 if (_HashedString.Length != 16)
                 {
                     _HashedString.Reverse();
@@ -69,73 +43,51 @@ namespace DieselEngineFormats.Bundle
         {
             get
             {
-                if (this._hashed == 0)
-                    this._hashed = Hash64.HashString(this.UnHashed);
+                if (_hashed == 0)
+                    _hashed = Hash64.HashString(UnHashed);
 
                 return this._hashed;
-                //return Hash64.HashString(this.UnHashed);
             }
         }
 
         public Idstring(string str, bool same = false)
         {
-            this.Same = same;
-
-            this.HasUnHashed = true;
-            string[] parts = str.Split('/');
-            int[] hash_parts = new int[parts.Length];
-            if (parts.Length != 1)
-            {
-                lock (HashIndex.StringLookup)
-                {
-                    for (int i = 0; i < parts.Length; i++)
-                    {
-                        string part = parts[i];
-                        if (!HashIndex.StringLookup.ContainsKey(part.GetHashCode()))
-                            HashIndex.StringLookup.Add(part.GetHashCode(), part);
-
-                        hash_parts[i] = part.GetHashCode();
-                    }
-                }
-                this._UnHashedParts = hash_parts;
-            }
-            else
-            {
-                this.UniqueUnhashed = str;
-            }
+            Same = same;
+            UnHashed = str;
+            HasUnHashed = true;
         }
 
         public Idstring(ulong hashed)
         {
-            this._hashed = hashed;
-            this.HasUnHashed = false;
+            _hashed = hashed;
+            HasUnHashed = false;
         }
 
         public void SwapEndianness()
         {
-            this._hashed = General.SwapEndianness(this.Hashed);
+            _hashed = General.SwapEndianness(Hashed);
         }
 
         public string Tag { get; set; }
 
         public override string ToString()
         {
-            return this.HasUnHashed ? this.UnHashed : this.HashedString;
+            return HasUnHashed ? UnHashed : HashedString;
         }
 
         public int CompareTo(object obj)
         {
-            return this.ToString().CompareTo((obj as Idstring)?.ToString() ?? "");
+            return ToString().CompareTo((obj as Idstring)?.ToString() ?? "");
         }
 
         public object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         public override int GetHashCode()
         {
-            return this.Hashed.GetHashCode();
+            return Hashed.GetHashCode();
         }
     }
 
@@ -161,8 +113,7 @@ namespace DieselEngineFormats.Bundle
  
         public static Idstring Get(string hash)
         {
-            Idstring ids;
-            AddHash(hash, out ids);
+            AddHash(hash, out Idstring ids);
             return ids;
         }
 
@@ -186,16 +137,8 @@ namespace DieselEngineFormats.Bundle
             foreach (string path in new_hashes)
             {
                 Idstring ids = new Idstring(path);
-                CheckCollision(hashes, ids.Hashed, ids);
-                hashes[ids.Hashed] = ids;
-            }
-        }
-
-        private static void CheckCollision(Dictionary<ulong, Idstring> item, ulong hash, Idstring value)
-        {
-            if (item.ContainsKey(hash) && (item[hash] != value))
-            {
-                Console.WriteLine("Hash collision: {0:x} : {1} == {2}", hash, item[hash], value);
+                if(!hashes.ContainsKey(ids.Hashed))
+                    hashes[ids.Hashed] = ids;
             }
         }
 
@@ -237,9 +180,6 @@ namespace DieselEngineFormats.Bundle
 
         public static HashType TypeOfHash(string hash)
         {
-            if (hash.Contains("/") || hash.Equals("idstring_lookup") || hash.Equals("existing_banks"))
-                return HashType.Path;
-
             if (hash.StartsWith("g_") && hash.StartsWith("c_") && hash.StartsWith("rp_") && hash.StartsWith("s_"))
                 return HashType.Object;
 
@@ -248,11 +188,7 @@ namespace DieselEngineFormats.Bundle
 
         public static bool AddHash(string hash, out Idstring ids, string tag = null, bool temp = false)
         {
-            if (TypeOfHash(hash) == HashType.Path && hash.Contains(":"))
-                hash = hash.Substring(0, hash.IndexOf(':'));
-
             ids = CreateHash(hash, tag);
-
             return AddHash(ids, temp);
         }
 
@@ -282,19 +218,39 @@ namespace DieselEngineFormats.Bundle
             return StringLookup.ContainsKey(hashcode) ? StringLookup[hashcode] : null;
         }
 
-        public static bool Load(string HashlistFile, HashType? Types = null, bool temp = false)
+        public static bool Load(string HashlistFile, bool temp = false)
+        {
+            try
+            {
+                string tag = Path.GetFileName(HashlistFile);
+                foreach (string hash in File.ReadLines(HashlistFile))
+                {
+                    if (string.IsNullOrEmpty(hash)) //Check for empty or comment
+                        continue;
+
+                    Idstring ids;
+                    AddHash(hash, out ids, tag, temp);
+                }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine(exc.Message);
+                return false;
+            }
+            return true;
+        }
+
+        public static bool LoadParallel(string HashlistFile, bool temp = false)
         {
             try
             {
                 string tag = Path.GetFileName(HashlistFile);
                 System.Threading.Tasks.Parallel.ForEach(File.ReadLines(HashlistFile), hash =>
-                //foreach (string hash in File.ReadLines(HashlistFile))
                 {
-                    if (String.IsNullOrEmpty(hash) || hash.StartsWith("//") || (Types != null && !((HashType)Types).HasFlag(TypeOfHash(hash)))) //Check for empty or comment
+                    if (string.IsNullOrEmpty(hash)) //Check for empty or comment
                         return; //continue;
 
-                    Idstring ids;
-                    AddHash(hash, out ids, tag, temp);
+                    AddHash(hash, out Idstring ids, tag, temp);
                 });
             }
             catch (Exception exc)
