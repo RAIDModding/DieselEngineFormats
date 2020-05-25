@@ -108,10 +108,10 @@
         public bool Load(string bundleFile)
         {
 
-            string bundleName = bundleFile.Replace(".bundle", "");
-            string headerFile = bundleName + "_h.bundle";
+            string bundlePathExtensionLess = bundleFile.Replace(".bundle", "");
+            string headerFile = bundlePathExtensionLess + "_h.bundle";
 
-            BundleName = Path.GetFileName(bundleName);
+            BundleName = Path.GetFileName(bundlePathExtensionLess);
 
             int multiHeaderIndex = -1;
             if (!File.Exists(headerFile))
@@ -119,7 +119,7 @@
                 List<string> splt = BundleName.Split("_").ToList();
                 string last = splt.Last();
                 splt.RemoveAt(splt.Count - 1);
-                string possibleHeader = Path.GetDirectoryName(bundleName) + $"\\{string.Join("_", splt)}_h.bundle";
+                string possibleHeader = Path.GetDirectoryName(bundlePathExtensionLess) + $"\\{string.Join("_", splt)}_h.bundle";
                 if (File.Exists(possibleHeader))
                 {
                     headerFile = possibleHeader;
@@ -132,8 +132,8 @@
                 }
             }
 
-            if(bundleName.Contains("_"))
-                _name = new Idstring(bundleName, true);
+            if(BundleName.Contains("_"))
+                _name = new Idstring(BundleName, true);
             else
             {
                 _name = (Idstring)General.BundleNameToPackageID(BundleName).Clone();
