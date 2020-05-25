@@ -113,24 +113,32 @@
 
             BundleName = Path.GetFileName(bundleName);
 
-            bool useAllHeader = false;
+            int multiHeaderIndex = -1;
             if (!File.Exists(headerFile))
             {
-                string all_h = Path.GetDirectoryName(bundleName) + "\\all_h.bundle";
-                if (BundleName.StartsWith("all_") && File.Exists(all_h))
+                List<string> splt = BundleName.Split("_").ToList();
+                string last = splt.Last();
+                splt.RemoveAt(splt.Count - 1);
+                string possibleHeader = Path.GetDirectoryName(bundleName) + $"\\{string.Join("_", splt)}_h.bundle";
+                if (File.Exists(possibleHeader))
                 {
-                    headerFile = all_h;
-                    useAllHeader = true;
+                    headerFile = possibleHeader;
+                    multiHeaderIndex = int.Parse(last);
                 }
                 else
                 {
-                    Console.WriteLine("Package header does not exist! {0}", headerFile);
+                    Console.WriteLine("Package header does not exist: {0} Possible header does not exist either: {1}", headerFile, possibleHeader);
                     return false;
                 }
             }
 
-            _name = (Idstring)General.BundleNameToPackageID(Path.GetFileName(bundleName)).Clone();
-            _name.SwapEndianness();
+            if(bundleName.Contains("_"))
+                _name = new Idstring(bundleName, true);
+            else
+            {
+                _name = (Idstring)General.BundleNameToPackageID(BundleName).Clone();
+                _name.SwapEndianness();
+            }
 
             try
             {
@@ -138,8 +146,8 @@
                 {
                     using (var br = new BinaryReader(fs))
                     {
-                        if (useAllHeader)
-                            return ReadMultiBundleHeader(br, int.Parse(Path.GetFileName(bundleName.Replace("all_", ""))));
+                        if (multiHeaderIndex != -1)
+                            return ReadMultiBundleHeader(br, multiHeaderIndex);
                         else
                             return ReadHeader(br, bundleFile);
                     }
@@ -276,7 +284,7 @@
 
             for (long i = 0; i < (long)Header[1]; i++)
             {
-                long Index = br.ReadInt64();
+                long index = br.ReadInt64();
                 uint entryCount1 = br.ReadUInt32();
 
                 uint entryCount2 = br.ReadUInt32();
@@ -285,7 +293,7 @@
 
                 if (One == 1 && entryCount1 == entryCount2)
                 {
-                    if (Index == bundleNum)
+                    if (index == bundleNum)
                     {
                         br.BaseStream.Position = (long)Offset + 4;
                         for (int x = 0; x < entryCount1; x++)

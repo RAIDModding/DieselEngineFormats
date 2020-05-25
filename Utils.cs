@@ -368,9 +368,6 @@ namespace DieselEngineFormats.Utils
 
 		public static Idstring BundleNameToPackageID(string bundle_id)
 		{
-			if (bundle_id.StartsWith ("all_")) {
-				return new Idstring (bundle_id, true);
-			}
 			return UnHashString(bundle_id);
 		}
 
