@@ -86,8 +86,9 @@
 
         public Idstring Name { get => this._name; set => this._name = value; }
 
-        public string BundleName { get; private set; }
+        public string BundleName { get; set; }
 
+        public ulong Length { get; set; }
         #endregion
 
         #region Public Methods and Operators
