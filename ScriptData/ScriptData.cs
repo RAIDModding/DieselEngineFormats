@@ -19,8 +19,9 @@
         private int stringOffset;
         private int tableOffset;
         private int vectorOffset;
-        private bool linux = false;
+        private bool x64;
 
+        public bool Raid { get; set; }
         //Exports
         private int table_count = 1;
         private MemoryStream table_index = new MemoryStream();
@@ -42,139 +43,125 @@
         public ScriptData(string path)
         {
             this.path =  path;
-            using (this.fs_copy = new FileStream(this.path, FileMode.Open, FileAccess.Read))
+            using (this.fs_copy = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
-                this.br = new BinaryReader(this.fs_copy);
-                this.ReadHeader();
-                this.Root = this.ParseItem();
-                this.br.Close();
+                br = new BinaryReader(fs_copy);
+                ReadHeader();
+                Root = ParseItem();
+                br.Close();
             }
         }
 
-        public ScriptData( BinaryReader bReader )
+        public ScriptData(BinaryReader bReader, bool raid=false)
         {
-            this.br = bReader;
-            this.ReadHeader();
-            this.Root = this.ParseItem();
-            this.br.Close();
+            Raid = raid;
+            br = bReader;
+            ReadHeader();
+            Root = ParseItem();
+            br.Close();
         }
 
         #endregion
 
         #region Methods
+        private void ReadHeader()
+        {
+            uint tag = br.ReadUInt32();
+
+            //x64 for now is only PD2 Linux.
+            //Raid doesn't have this tag :/
+            if (Raid || tag == 568494624)
+                x64 = true;
+
+            Seek(0);
+
+            //Raid / x64(Linux) / x32
+            floatOffset = ReadOffset();     //24/16/12
+            stringOffset = ReadOffset();    //56/40/28
+            vectorOffset = ReadOffset();    //88/64/44
+            quaternionOffset = ReadOffset();//120/88/60
+            idstringOffset = ReadOffset();  //152/112/76
+            tableOffset = ReadOffset();     //184/136/92
+
+            if (x64)
+                SeekAdvance(8); //Raid: 200 (Raid) / 152 (x64)
+            else
+                SeekAdvance(4); //100
+        }
+
+        private int ReadOffset(bool advance = true)
+        {
+            if (advance)
+            {
+                if (Raid)
+                    SeekAdvance(24);
+                else if (x64)
+                    SeekAdvance(16);
+                else
+                    SeekAdvance(12);
+            }
+
+            if (x64)
+                return (int)br.ReadInt64();
+            else
+                return br.ReadInt32();
+        }
+
+        private int ReadIntValue()
+        {
+            if (Raid)
+                return (int)br.ReadInt64();
+            else
+                return br.ReadInt32();
+        }
 
         private dynamic ParseItem()
         {
-            uint item_type = this.br.ReadUInt32();
+            uint item_type = br.ReadUInt32();
             int value = (int)item_type & 0xFFFFFF;
             item_type = (item_type >> 24) & 0xFF;
 
-            switch (item_type)
+            return item_type switch
             {
-                case 0: //Nil
-                    return null;
-                case 1: //False
-                    return false;
-                case 2: //True
-                    return true;
-                case 3: //Number
-                    return this.ReadFloat(value);
-                case 4: //String
-                    return this.ReadString(value);
-                case 5: //Vector
-                    return this.ReadVector(value);
-                case 6: //Quaternion
-                    return this.ReadQuaternion(value);
-                case 7: //IdString
-                    return this.ReadIdString(value);
-                case 8: //Table
-                    return this.ReadTable(value);
-                default:
-                    return null;
-            }
+                //Nil
+                0 => null,
+                //False
+                1 => false,
+                //True
+                2 => true,
+                //Number
+                3 => ReadFloat(value),
+                //String
+                4 => ReadString(value),
+                //Vector
+                5 => ReadVector(value),
+                //Quaternion
+                6 => ReadQuaternion(value),
+                //IdString
+                7 => ReadIdString(value),
+                //Table
+                8 => ReadTable(value),
+                _ => null,
+            };
         }
 
         private float ReadFloat(int index)
         {
             float return_float;
-            this.SeekPush();
-            this.Seek(this.floatOffset + index * 4);
-            return_float = this.br.ReadSingle();
-            this.SeekPop();
+            SeekPush();
+            Seek(floatOffset + index * 4);
+            return_float = br.ReadSingle();
+            SeekPop();
             return return_float;
         }
-
-        private void ReadHeader()
-        {
-            uint tag = this.br.ReadUInt32();
-
-            if (tag == 568494624)
-                this.linux = true;
-
-            if (!this.linux)
-			    this.Seek(12);
-            else
-                this.Seek(16);
-
-            this.floatOffset = this.ReadOffset();
-
-            if (!this.linux)
-                this.Seek(28);
-            else
-                this.Seek(40);
-
-            this.stringOffset = this.ReadOffset();
-
-            if (!this.linux)
-                this.Seek(44);
-            else
-                this.Seek(64);
-
-            this.vectorOffset = this.ReadOffset();
-
-            if (!this.linux)
-                this.Seek(60);
-            else
-                this.Seek(88);
-
-            this.quaternionOffset = this.ReadOffset();
-
-            if (!this.linux)
-                this.Seek(76);
-            else
-                this.Seek(112);
-
-            this.idstringOffset = this.ReadOffset();
-
-            if (!this.linux)
-                this.Seek(92);
-            else
-                this.Seek(136);
-
-            this.tableOffset = this.ReadOffset();
-
-            if (!this.linux)
-                this.Seek(100);
-            else
-                this.Seek(152);
-        }
-
-        private int ReadOffset()
-        {
-            if (this.linux)
-                return (int)this.br.ReadInt64();
-            else
-                return this.br.ReadInt32();
-        }
-
 
         private ulong ReadIdString(int index)
         {
             ulong return_idstring;
-            this.SeekPush();
-            this.Seek(this.idstringOffset + index * 8);
-            return_idstring = this.br.ReadUInt64();
-            this.SeekPop();
+            SeekPush();
+            Seek(idstringOffset + index * 8);
+            return_idstring = br.ReadUInt64();
+            SeekPop();
             return return_idstring;
         }
 
@@ -182,94 +169,95 @@
         {
             
             var return_quaternion = new float[4];
-            this.SeekPush();
-            this.Seek(this.quaternionOffset + index * 16);
-            return_quaternion[0] = this.br.ReadSingle();
-            return_quaternion[1] = this.br.ReadSingle();
-            return_quaternion[2] = this.br.ReadSingle();
-            return_quaternion[3] = this.br.ReadSingle();
-            this.SeekPop();
+            SeekPush();
+            Seek(quaternionOffset + index * 16);
+            return_quaternion[0] = br.ReadSingle();
+            return_quaternion[1] = br.ReadSingle();
+            return_quaternion[2] = br.ReadSingle();
+            return_quaternion[3] = br.ReadSingle();
+            SeekPop();
             return return_quaternion;
         }
 
         private string ReadString(int index)
         {
             string return_string = "";
-            this.SeekPush();
+            SeekPush();
 
-            this.Seek(this.stringOffset + (index * (this.linux ? 16 : 8)) + (this.linux ? 8 : 4));
-            int real_offset = this.ReadOffset();
+            Seek(stringOffset + (index * (x64 ? 16 : 8)) + (x64 ? 8 : 4));
+            int real_offset = ReadOffset(false);
 
-            this.Seek(real_offset);
-            var inchar = (char)this.br.ReadByte();
+            Seek(real_offset);
+            var inchar = (char)br.ReadByte();
             while (inchar != '\0')
             {
                 return_string += inchar;
-                inchar = (char)this.br.ReadByte();
+                inchar = (char)br.ReadByte();
             }
-            this.SeekPop();
-            if (return_string.Contains("metadata"))
-                Console.WriteLine();
+            SeekPop();
+            //if (return_string.Contains("metadata"))
+             //   Console.WriteLine();
             return return_string;
         }
 
         private Dictionary<string, object> ReadTable(int index)
         {
             var return_table = new Dictionary<string, object>();
-			this.SeekPush ();
+			SeekPush ();
 
-            this.Seek(this.tableOffset + (index * (this.linux ? 32 : 20)));
-            int metatable_offset = this.ReadOffset();
+            Seek(tableOffset + (index * (x64 ? (Raid ? 40 : 32) : 20)));
 
-            int item_count = this.br.ReadInt32();
-            this.br.ReadInt32(); // Unknown : count
-            int items_offset = this.ReadOffset();
+            int metatable_offset = ReadOffset(false);
+
+            int item_count = ReadIntValue();
+            ReadIntValue(); // Unknown : count
+            int items_offset = ReadOffset(false);
 
             if (metatable_offset >= 0)
                 return_table["_meta"] = ReadString(metatable_offset);
             for (int current_item = 0; current_item < item_count; ++current_item)
             {
-                this.Seek(items_offset + (current_item * 8));
-                dynamic key_item = this.ParseItem().ToString();
-                dynamic value_item = this.ParseItem();
+                Seek(items_offset + (current_item * 8));
+                dynamic key_item = ParseItem().ToString();
+                dynamic value_item = ParseItem();
                 return_table[key_item] = value_item;
             }
-            this.SeekPop();
+            SeekPop();
             return return_table;
         }
 
         private float[] ReadVector(int index)
         {
             var return_vector = new float[3];
-            this.SeekPush();
-            this.Seek(this.vectorOffset + index * 12);
-            return_vector[0] = this.br.ReadSingle();
-            return_vector[1] = this.br.ReadSingle();
-            return_vector[2] = this.br.ReadSingle();
-            this.SeekPop();
+            SeekPush();
+            Seek(vectorOffset + index * 12);
+            return_vector[0] = br.ReadSingle();
+            return_vector[1] = br.ReadSingle();
+            return_vector[2] = br.ReadSingle();
+            SeekPop();
             return return_vector;
         }
 
         private void Seek(int offset)
         {
-            this.br.BaseStream.Seek(offset, SeekOrigin.Begin);
+            br.BaseStream.Seek(offset, SeekOrigin.Begin);
         }
 
         private void SeekAdvance(int offset)
         {
-            this.br.BaseStream.Seek(offset, SeekOrigin.Current);
+            br.BaseStream.Seek(offset, SeekOrigin.Current);
         }
 
         private void SeekPop()
         {
-            this.br.BaseStream.Seek(this.savedPositions.Pop(), SeekOrigin.Begin);
-            if (this.savedPositions.Count == 0)
-                Console.WriteLine();
+            br.BaseStream.Seek(savedPositions.Pop(), SeekOrigin.Begin);
+            //if (savedPositions.Count == 0)
+             //   Console.WriteLine();
         }
 
         private void SeekPush()
         {
-            this.savedPositions.Push(this.br.BaseStream.Position);
+            savedPositions.Push(br.BaseStream.Position);
         }
 
         private void WriteTable(ref Dictionary<string, object> data, List<string> path, ref BinaryWriter bw)
