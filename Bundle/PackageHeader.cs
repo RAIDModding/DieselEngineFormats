@@ -279,18 +279,44 @@
                 br.ReadUInt32(), //eof
                 br.ReadUInt32(), //bundle count
                 br.ReadUInt32(), //unknown
-                br.ReadUInt32(), //unknown
+                br.ReadUInt32(), //offset
                 br.ReadUInt32(), //unknown
             };
 
+            x64 = Header[3] == 24;
+            br.BaseStream.Position = (long)(Header[3] + 4);
+
             for (long i = 0; i < (long)Header[1]; i++)
             {
-                long index = br.ReadInt64();
-                uint entryCount1 = br.ReadUInt32();
+                long index;
+                if (x64)
+                {
+                    index = br.ReadInt64();
+                    br.BaseStream.Position += 8; // unknown
+                }
+                else
+                {
+                    index = br.ReadInt32();
+                    br.BaseStream.Position += 4; // unknown
+                }
 
+                uint entryCount1 = br.ReadUInt32();
                 uint entryCount2 = br.ReadUInt32();
-                ulong Offset = br.ReadUInt64();
-                uint One = br.ReadUInt32();
+
+                ulong Offset;
+                ulong One;
+                if (x64)
+                {
+                    Offset = br.ReadUInt64();
+                    br.BaseStream.Position += 8; //unknown
+                    One = br.ReadUInt64();
+                }
+                else
+                {
+                    Offset = br.ReadUInt32();
+                    br.BaseStream.Position += 4; //unknown
+                    One = br.ReadUInt32(); //unknown
+                }
 
                 if (One == 1 && entryCount1 == entryCount2)
                 {
