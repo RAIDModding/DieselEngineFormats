@@ -315,7 +315,7 @@
                 {
                     Offset = br.ReadUInt32();
                     br.BaseStream.Position += 4; //unknown
-                    One = br.ReadUInt32(); //unknown
+                    One = br.ReadUInt32();
                 }
 
                 if (One == 1 && entryCount1 == entryCount2)
