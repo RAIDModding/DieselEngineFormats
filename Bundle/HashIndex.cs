@@ -102,7 +102,7 @@ namespace DieselEngineFormats.Bundle
         }
 
         private static Dictionary<ulong, Idstring> used_hashes = new Dictionary<ulong, Idstring>();
-        private static Dictionary<ulong, Idstring> hashes = new Dictionary<ulong, Idstring>();
+        public static Dictionary<ulong, Idstring> hashes = new Dictionary<ulong, Idstring>();
         public static Dictionary<ulong, Idstring> temp = new Dictionary<ulong, Idstring>();
         public static Dictionary<int, string> StringLookup = new Dictionary<int, string>();
 
