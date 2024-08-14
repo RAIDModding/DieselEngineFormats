@@ -1,4 +1,4 @@
-﻿namespace DieselEngineFormats.Bundle
+namespace DieselEngineFormats.Bundle
 {
     using System;
     using System.Collections.Generic;
@@ -161,99 +161,186 @@
             }
         }
 
-        public bool ReadHeader(BinaryReader br, string bundleFile)
+        public static ulong ReadCombinedCompressedSize(string path)
         {
-
-            bool confSet = false;
-
-            br.BaseStream.Position = 8;
-            if (br.ReadUInt32() == 0 && br.ReadUInt32() != 0)
-                x64 = true;
-            br.BaseStream.Position = 0;
-
-            if (x64)
+            ulong result;
+            using (FileStream fs = new FileStream(path, FileMode.Open))
             {
-                Header = new List<ulong>{
-                    br.ReadUInt32(),
-                    br.ReadUInt64(),
-                    br.ReadUInt64(),
-                    br.ReadUInt64()
-                };
-            }
-            else
-            {
-                Header = new List<ulong>{
-                    br.ReadUInt32(),//ref offset
-                    br.ReadUInt32(),//tag / count
-                    br.ReadUInt32(),//linux:tag / count
-                    br.ReadUInt32() // offset / count
-                };
-            }
-
-            if (Header[1] != Header[2])
-                Header.Add(br.ReadUInt32());
-
-            ulong itemCount = 0, offset = 0, refOffset = Header[0];
-
-            for (int i = 1; i < (this.Header.Count - 1); i++)
-            {
-                if (this.Header[i] == this.Header[i + 1])
+                using (BinaryReader br = new BinaryReader(fs))
                 {
-                    itemCount = Header[i];
-                    if (Header.Count <= i + 2)
-                        Header.Add(br.ReadUInt32());
-
-                    offset = Header[i + 2];
-                    if (i != 1)
-                        this.HasLengthField = true;
-
-                    break;
+                    result = br.ReadUInt64();
                 }
             }
+            return result;
+        }
 
-            if (br.BaseStream.Position < (long)offset)
+        // Token: 0x06000150 RID: 336 RVA: 0x00009478 File Offset: 0x00007678
+        public static byte[] ReadCombinedCompressed(string path)
+        {
+            byte[] result;
+            try
             {
-                ulong amount = (offset - (ulong)br.BaseStream.Position) / 4;
-                for (uint i = 0; i < amount; i++)
-                    this.Header.Add(br.ReadUInt32());
-            }
-
-            if (offset == 0)
-                offset = refOffset - 4;
-
-            br.BaseStream.Position = (long)offset;
-
-            uint entryTag = br.ReadUInt32();
-
-            if (!confSet)
-            {
-                List<BundleHeaderConfig> configs = Defs.ConfigLookup.FindAll(conf => this.HasLengthField ? conf.EntryStartLengthTag.Equals(entryTag) : conf.EntryStartTag.Equals(entryTag));
-                if (configs.Count == 1)
+                using (FileStream fs = new FileStream(path, FileMode.Open))
                 {
-                    this.Config = configs[0];
-
-                    confSet = true;
+                    using (BinaryReader br = new BinaryReader(fs))
+                    {
+                        result = PackageHeader.ReadCombinedCompressed(br);
+                    }
                 }
             }
-
-            for (int i = 0; i < (int)itemCount; ++i)
-                ReadEntry(br, i);
-            
-            //Correct last entry length
-            if (itemCount > 0 && !this.HasLengthField)
+            catch (Exception value)
             {
-                 uint length = (uint)new FileInfo(bundleFile).Length;
-                 this._entries[this._entries.Count-1].Length = (int)(length - this._entries[this._entries.Count-1].Address);
+                Console.WriteLine(value);
+                result = new byte[0];
             }
+            return result;
+        }
 
-            this.Footer = br.ReadBytes((int)(br.BaseStream.Length - br.BaseStream.Position));
+        // Token: 0x06000151 RID: 337 RVA: 0x000094E8 File Offset: 0x000076E8
+        public static byte[] ReadCombinedCompressed(BinaryReader br)
+        {
+            ulong num = br.ReadUInt64();
+            int sectionCount = (int)Math.Ceiling(num / 65536.0);
+            byte[] output = new byte[num];
+            int currentMax = (int)num;
+            for (int i = 0; i < sectionCount; i++)
+            {
+                int sectionSize = br.ReadInt32();
+                byte[] sectionData = br.ReadBytes(sectionSize);
+                byte[] uncompressedSectionData;
+                try
+                {
+                    using (MemoryStream inms = new MemoryStream(sectionData))
+                    {
+                        using (MemoryStream outms = new MemoryStream())
+                        {
+                            General.ZLibDecompress(inms, outms);
+                            uncompressedSectionData = outms.ToArray();
+                        }
+                    }
+                }
+                catch
+                {
+                    uncompressedSectionData = sectionData;
+                }
+                int length = uncompressedSectionData.Length;
+                if (length > currentMax)
+                {
+                    length = currentMax;
+                }
+                Array.Copy(uncompressedSectionData, 0, output, 65536 * i, length);
+                currentMax -= 65536;
+            }
+            return output;
+        }
 
-            /*uint sectag = br.ReadUInt32();
-            if (sectag.Equals(this.Config.ReferenceStartTag))
-                this.ReadFooter(br);
-            */
-
-            return true;
+        // Token: 0x06000152 RID: 338 RVA: 0x000095D8 File Offset: 0x000077D8
+        public bool ReadHeader(BinaryReader cbr, string bundleFile)
+        {
+            bool result;
+            using (BinaryReader br = new BinaryReader(new MemoryStream(PackageHeader.ReadCombinedCompressed(cbr))))
+            {
+                bool confSet = false;
+                br.BaseStream.Position = 8L;
+                if (br.ReadUInt32() == 0U && br.ReadUInt32() != 0U)
+                {
+                    this.x64 = true;
+                }
+                br.BaseStream.Position = 0L;
+                if (this.x64)
+                {
+                    this.Header = new List<ulong>
+                    {
+                        (ulong)br.ReadUInt32(),
+                        br.ReadUInt64(),
+                        br.ReadUInt64(),
+                        br.ReadUInt64()
+                    };
+                }
+                else
+                {
+                    this.Header = new List<ulong>
+                    {
+                        (ulong)br.ReadUInt32(),
+                        (ulong)br.ReadUInt32(),
+                        (ulong)br.ReadUInt32(),
+                        (ulong)br.ReadUInt32()
+                    };
+                }
+                if (this.Header[1] != this.Header[2])
+                {
+                    this.Header.Add((ulong)br.ReadUInt32());
+                }
+                ulong itemCount = 0UL;
+                ulong offset = 0UL;
+                ulong refOffset = this.Header[0];
+                int i = 1;
+                while (i < this.Header.Count - 1)
+                {
+                    if (this.Header[i] == this.Header[i + 1])
+                    {
+                        itemCount = this.Header[i];
+                        if (this.Header.Count <= i + 2)
+                        {
+                            this.Header.Add((ulong)br.ReadUInt32());
+                        }
+                        offset = this.Header[i + 2];
+                        if (i != 1)
+                        {
+                            this.HasLengthField = true;
+                            break;
+                        }
+                        break;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+                if (br.BaseStream.Position < (long)offset)
+                {
+                    ulong amount = (offset - (ulong)br.BaseStream.Position) / 4UL;
+                    uint j = 0U;
+                    while ((ulong)j < amount)
+                    {
+                        this.Header.Add((ulong)br.ReadUInt32());
+                        j += 1U;
+                    }
+                }
+                if (offset == 0UL)
+                {
+                    offset = refOffset - 4UL;
+                }
+                br.BaseStream.Position = (long)offset;
+                uint entryTag = br.ReadUInt32();
+                if (!confSet)
+                {
+                    List<BundleHeaderConfig> configs = Defs.ConfigLookup.FindAll(delegate (BundleHeaderConfig conf)
+                    {
+                        if (!this.HasLengthField)
+                        {
+                            return conf.EntryStartTag.Equals(entryTag);
+                        }
+                        return conf.EntryStartLengthTag.Equals(entryTag);
+                    });
+                    if (configs.Count == 1)
+                    {
+                        this.Config = configs[0];
+                    }
+                }
+                for (int k = 0; k < (int)itemCount; k++)
+                {
+                    this.ReadEntry(br, k);
+                }
+                if (itemCount > 0UL && !this.HasLengthField)
+                {
+                    ulong length = PackageHeader.ReadCombinedCompressedSize(bundleFile);
+                    this._entries[this._entries.Count - 1].Length = (int)(length - (ulong)this._entries[this._entries.Count - 1].Address);
+                }
+                this.Footer = br.ReadBytes((int)(br.BaseStream.Length - br.BaseStream.Position));
+                result = true;
+            }
+            return result;
         }
 
         private void ReadEntry(BinaryReader br, int i)
